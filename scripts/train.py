@@ -8,9 +8,11 @@ from tensorflow.keras.layers import Dropout
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import core
 
+symbol = "AAPL"
+
 try:
 
-    train_data, test_data , _ , _ = core.get_simulated_data()
+    train_data, test_data , _ , _ = core.get_live_data(symbol=symbol)
 
     # Create input sequences and target outputs for multiple columns
     def create_sequences(data, seq_length=30):
@@ -52,8 +54,8 @@ try:
     model.fit(x_train, y_train, epochs=50, batch_size=32, validation_split=0.1)
 
     # Save the model
-    model.save("models/stock_prediction_model.keras")  # Save in HDF5 format
-    np.save("models/scaler.npy", scaler)  # Save the scaler for later use
+    model.save(f"models/{symbol}_stock_prediction_model.keras")  # Save in HDF5 format
+    np.save(f"models/{symbol}_scaler.npy", scaler)  # Save the scaler for later use
     print("Model and scaler saved.")
 
 except Exception as e:

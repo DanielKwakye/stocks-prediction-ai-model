@@ -32,13 +32,13 @@ def get_simulated_data(json_path="data/simulated_data.json"):
     train_data, test_data = train_test_split(data, test_size=0.2, shuffle=False)
     return train_data, test_data, data, meta_data
 
-def get_live_data():
+def get_live_data(symbol: str = 'AAPL'):
     api_key = os.getenv('APP_VANTAGE_API_KEY')
     # Initialize the TimeSeries object
     ts = TimeSeries(key=api_key, output_format='pandas')
 
     # Retrieve historical data for a stock symbol
-    stock_symbol = 'AAPL'  # Replace with the desired stock symbol
+    stock_symbol = symbol  # Replace with the desired stock symbol
     data, meta_data = ts.get_daily(symbol=stock_symbol, outputsize='full')
 
 
