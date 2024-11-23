@@ -4,10 +4,6 @@ import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 from scripts import core
 
-# Load the saved model and scaler
-model = tf.keras.models.load_model("models/stock_prediction_model.keras")
-scaler = np.load("models/scaler.npy", allow_pickle=True).item()
-
 def predict_future(data, model, scaler, sma_5, n_days=30, last_date=None):
     """
     Predict future stock prices for n_days based on residual forecasting and SMA adjustment.
@@ -28,10 +24,16 @@ def predict_future(data, model, scaler, sma_5, n_days=30, last_date=None):
     return [{"date": date.date(), "high": pred[0], "low": pred[1], "close": pred[2]} for date, pred in zip(future_dates, predictions_actual)]
 
 def get_predictions(symbol: str, n_days: int):
+
+    # Load the saved model and scaler
+    model = tf.keras.models.load_model(f"models/{symbol}_stock_prediction_model.keras")
+    scaler = np.load(f"models/{symbol}_scaler.npy", allow_pickle=True).item()
+
     """
     Orchestrates the loading of data, scaling, and calling predict_future.
     """
-    _, test_data, data, _ = core.get_live_data(symbol=symbol)
+    # _, test_data, data, _ = core.get_live_data(symbol=symbol)
+    _, test_data, data, _ = core.get_simulated_data()
 
     # Scale residuals
     test_data_scaled = scaler.transform(test_data[['residual_high', 'residual_low', 'residual_close']])

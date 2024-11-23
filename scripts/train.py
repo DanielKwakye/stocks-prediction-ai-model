@@ -12,7 +12,8 @@ symbol = "AAPL"
 
 try:
 
-    train_data, test_data , _ , _ = core.get_live_data(symbol=symbol)
+    # train_data, test_data , _ , _ = core.get_live_data(symbol=symbol)
+    train_data, test_data , _ , _ = core.get_simulated_data()
 
     # Create input sequences and target outputs for multiple columns
     def create_sequences(data, seq_length=30):
