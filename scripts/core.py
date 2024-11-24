@@ -30,7 +30,12 @@ def get_simulated_data(json_path="data/simulated_data.json"):
 
     # Split into training and testing sets
     train_data, test_data = train_test_split(data, test_size=0.2, shuffle=False)
-    return train_data, test_data, data, meta_data
+
+    # Get the start and end dates of the test_data
+    test_data_start_date = test_data.index.min()  # First date in test_data
+    test_data_end_date = test_data.index.max()    # Last date in test_data
+
+    return train_data, test_data, data, meta_data, test_data_start_date, test_data_end_date
 
 def get_live_data(symbol: str = 'AAPL'):
     api_key = os.getenv('APP_VANTAGE_API_KEY')
@@ -62,7 +67,12 @@ def get_live_data(symbol: str = 'AAPL'):
     train_data, test_data = train_test_split(data, test_size=0.2, shuffle=False)
     print("train data => ", train_data)
     print("test data => ", test_data)
-    return train_data, test_data, data, meta_data
+
+    # Get the start and end dates of the test_data
+    test_data_start_date = test_data.index.min()  # First date in test_data
+    test_data_end_date = test_data.index.max()    # Last date in test_data
+
+    return train_data, test_data, data, meta_data, test_data_start_date, test_data_end_date
 
 # get_live_data()
 

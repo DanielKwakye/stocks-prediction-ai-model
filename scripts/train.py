@@ -13,7 +13,7 @@ symbol = "AAPL"
 try:
 
     # train_data, test_data , _ , _ = core.get_live_data(symbol=symbol)
-    train_data, test_data , _ , _ = core.get_simulated_data()
+    train_data, test_data , _ , _, _, _ = core.get_simulated_data()
 
     # Create input sequences and target outputs for multiple columns
     def create_sequences(data, seq_length=30):
@@ -64,3 +64,9 @@ except Exception as e:
 
 
 
+""" Limited Features
+The model may be using insufficient or non-optimal features, such as relying only on residuals (residual_high, residual_low, residual_close) and SMA values. While these features may capture basic price dynamics, they might not fully represent market conditions.
+Additional features like trading volume, volatility, or external macroeconomic indicators could improve the model's predictions.
+Solutions:
+Enrich the feature set with more relevant data (e.g., technical indicators like RSI, MACD, Bollinger Bands, or fundamental features like earnings reports).
+"""
