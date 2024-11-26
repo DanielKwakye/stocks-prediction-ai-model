@@ -2,6 +2,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scripts.predict import get_predictions, get_test_date_range, get_predictions_and_mse
+from typing import Optional
+from datetime import datetime, timedelta
+import pandas as pd
 
 # FastAPI app
 app = FastAPI()
@@ -22,8 +25,8 @@ class PredictionRequest(BaseModel):
 # Pydantic model for request validation
 class MSERequest(BaseModel):
     symbol: str
-    start_date: str
-    end_date: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 @app.post("/predict/")
 def predict_stock_prices(request: PredictionRequest):
@@ -57,6 +60,27 @@ def get_predictions_and_mse_endpoint(request: MSERequest):
     symbol = request.symbol
     start_date = request.start_date
     end_date = request.end_date
+
+    if start_date is None or end_date is None:
+        # If no date range is provided, use the last 30 days as the default range
+        range = get_test_date_range()
+        start_date = range["start_date"]
+
+        # Ensure `start_date` is converted to string if it is not already
+        if isinstance(start_date, pd.Timestamp):
+            start_date = start_date.strftime("%Y-%m-%d")
+        elif not isinstance(start_date, str):
+            start_date = str(start_date)
+
+        print("start_date: => ------- ", start_date)
+        
+        # Parse the date string
+        original_date = datetime.strptime(start_date, "%Y-%m-%d")
+        
+        # Add 10 days
+        new_date = original_date + timedelta(days=10)
+        end_date = new_date.strftime("%Y-%m-%d")
+
 
     try:
         # Call the get_predictions_and_mse function

@@ -34,8 +34,8 @@ def get_predictions(symbol: str, n_days: int):
     """
     Orchestrates the loading of data, scaling, and calling predict_future.
     """
-    # _, test_data, data, _ = core.get_live_data(symbol=symbol)
-    _, test_data, data, _, _, _ = core.get_simulated_data()
+    # _, test_data, data, _, _, _ = core.get_simulated_data()
+    _, test_data, data, _, _, _ = core.get_live_data()
 
     # Scale residuals
     test_data_scaled = scaler.transform(test_data[['residual_high', 'residual_low', 'residual_close']])
@@ -133,7 +133,8 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
     scaler = np.load(f"models/{symbol}_scaler.npy", allow_pickle=True).item()
 
     # Load simulated data
-    _, _, data, _, _, _ = core.get_simulated_data()
+    # _, _, data, _, _, _ = core.get_simulated_data()
+    _, _, data, _, _, _ = core.get_live_data()
 
     # Ensure data is within the specified date range
     actual_data = data.loc[start_date:end_date]
@@ -172,7 +173,7 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
     }
 
 def get_test_date_range(): 
-    _, _, _, _, test_data_start_date, test_data_end_date = core.get_simulated_data()
+    _, _, _, _, test_data_start_date, test_data_end_date = core.get_live_data()
     print(f"Test Data Start Date: {test_data_start_date}")
     print(f"Test Data End Date: {test_data_end_date}")
     return {
