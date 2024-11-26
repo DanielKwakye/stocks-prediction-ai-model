@@ -65,6 +65,7 @@ def predict_historical(data, model, scaler, start_date, end_date):
     Returns:
         List[dict]: Predictions for the specified date range.
     """
+
     # Ensure data is within the specified date range
     target_data = data.loc[start_date:end_date]
     if target_data.empty:
@@ -93,24 +94,29 @@ def predict_historical(data, model, scaler, start_date, end_date):
 
     for i in range(n_days):
         # Make a prediction
-        next_prediction = model.predict(test_data_scaled)  # Shape: (1, 3)
-        next_prediction_rescaled = scaler.inverse_transform(next_prediction[0].reshape(1, -1))
+        try:
 
-        # Handle dynamic SMA adjustments
-        sma_adjustment = sma_5_values[i % len(sma_5_values)].reshape(-1, 1)
-        adjusted_prediction = next_prediction_rescaled + sma_adjustment
+            next_prediction = model.predict(test_data_scaled)  # Shape: (1, 3)
+            next_prediction_rescaled = scaler.inverse_transform(next_prediction[0].reshape(1, -1))
 
-        # Add to predictions
-        predictions.append({
-            "date": (pd.to_datetime(start_date) + pd.Timedelta(days=i)).date(),
-            "high": adjusted_prediction[0, 0],
-            "low": adjusted_prediction[0, 1],
-            "close": adjusted_prediction[0, 2],
-        })
+            # Handle dynamic SMA adjustments
+            sma_adjustment = sma_5_values[i % len(sma_5_values)].reshape(-1, 1)
+            adjusted_prediction = next_prediction_rescaled + sma_adjustment
 
-        # Update the input sequence with the prediction
-        next_input = next_prediction[0].reshape(1, 1, -1)  # Reshape for concatenation
-        test_data_scaled = np.concatenate([test_data_scaled[:, 1:, :], next_input], axis=1)
+            # Add to predictions
+            predictions.append({
+                "date": (pd.to_datetime(start_date) + pd.Timedelta(days=i)).date(),
+                "high": adjusted_prediction[0, 0],
+                "low": adjusted_prediction[0, 1],
+                "close": adjusted_prediction[0, 2],
+            })
+
+            # Update the input sequence with the prediction
+            next_input = next_prediction[0].reshape(1, 1, -1)  # Reshape for concatenation
+            test_data_scaled = np.concatenate([test_data_scaled[:, 1:, :], next_input], axis=1)
+
+        except:
+            continue
 
     return predictions
 
@@ -134,7 +140,7 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
 
     # Load simulated data
     # _, _, data, _, _, _ = core.get_simulated_data()
-    _, _, data, _, _, _ = core.get_live_data()
+    _, _, data, _, _, _ = core.get_live_data(symbol=symbol)
 
     # Ensure data is within the specified date range
     actual_data = data.loc[start_date:end_date]
@@ -147,6 +153,12 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
     # Convert predictions to DataFrame
     predictions_df = pd.DataFrame(predictions).set_index('date')
 
+    # # Log missing dates
+    # missing_dates = predictions_df.index.difference(actual_data.index)
+    # if not missing_dates.empty:
+    #     print(f"Warning: The following prediction dates are not in the actual data index: {missing_dates}")
+
+    
     # Align actual data for comparison
     actual_values = actual_data[['2. high', '3. low', '4. close']].rename(
         columns={"2. high": "high", "3. low": "low", "4. close": "close"}
