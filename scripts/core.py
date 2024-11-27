@@ -49,8 +49,8 @@ def get_live_data(symbol: str = 'IBM'):
         tuple: train_data, test_data, full_data, meta_data, test_data_start_date, test_data_end_date
     """
     # Fetch API key from environment variables
-    # api_key = os.getenv('APP_VANTAGE_API_KEY')
-    api_key = "J66LKJPYTVPALNUA"
+    api_key = os.getenv('APP_VANTAGE_API_KEY')
+    # api_key = "J66LKJPYTVPALNUA"
     if not api_key:
         raise ValueError("API key for Alpha Vantage not found in environment variables.")
     
