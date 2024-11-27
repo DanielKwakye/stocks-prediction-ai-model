@@ -63,7 +63,6 @@ except Exception as e:
     print(f"Error {e}")
 
 
-
 """ Limited Features
 The model may be using insufficient or non-optimal features, such as relying only on residuals (residual_high, residual_low, residual_close) and SMA values. While these features may capture basic price dynamics, they might not fully represent market conditions.
 Additional features like trading volume, volatility, or external macroeconomic indicators could improve the model's predictions.

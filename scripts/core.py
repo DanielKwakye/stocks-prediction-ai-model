@@ -37,7 +37,7 @@ def get_simulated_data(json_path="data/simulated_data.json"):
 
     return train_data, test_data, data, meta_data, test_data_start_date, test_data_end_date
 
-def get_live_data(symbol: str = 'AAPL'):
+def get_live_data(symbol: str = 'IBM'):
     """
     Fetches and prepares live stock data, including feature engineering
     and splitting into training and testing datasets.

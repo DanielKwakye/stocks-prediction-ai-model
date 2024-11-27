@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from scripts.predict import get_predictions, get_test_date_range, get_predictions_and_mse
+from scripts.predict import get_predictions, get_test_date_range, get_predictions_and_mse, subtract_business_days
 from typing import Optional
 from datetime import datetime, timedelta
 import pandas as pd
@@ -61,25 +61,24 @@ def get_predictions_and_mse_endpoint(request: MSERequest):
     start_date = request.start_date
     end_date = request.end_date
 
+    range = get_test_date_range()
+
     if start_date is None or end_date is None:
-        # If no date range is provided, use the last 30 days as the default range
-        range = get_test_date_range()
-        start_date = range["start_date"]
-
-        # Ensure `start_date` is converted to string if it is not already
-        if isinstance(start_date, pd.Timestamp):
-            start_date = start_date.strftime("%Y-%m-%d")
-        elif not isinstance(start_date, str):
-            start_date = str(start_date)
-
-        print("start_date: => ------- ", start_date)
+        # Default to last 30 days if no range is provided
         
-        # Parse the date string
-        original_date = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date = range["end_date"]
+
+        # Ensure `end_date` is a string
+        if isinstance(end_date, pd.Timestamp):
+            end_date = end_date.strftime("%Y-%m-%d")
+        elif not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        print("end_date: => ------- ", end_date)
         
-        # Add 10 days
-        new_date = original_date + timedelta(days=10)
-        end_date = new_date.strftime("%Y-%m-%d")
+        # Calculate start_date as 10 business days before end_date
+        start_date = subtract_business_days(end_date, 10)
+        print("start_date (10 business days before end_date): => ------- ", start_date)
 
 
     try:
@@ -93,6 +92,8 @@ def get_predictions_and_mse_endpoint(request: MSERequest):
         return {
             "symbol": symbol,
             "start_date": start_date,
+            "start_date_limit": range["start_date"],
+            "end_date_limit": range["end_date"],
             "end_date": end_date,
             "predictions": result["predictions"],
             "actual": result["actual"],

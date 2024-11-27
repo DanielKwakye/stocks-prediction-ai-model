@@ -3,6 +3,8 @@ import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 from scripts import core
+from datetime import datetime, timedelta
+
 # import core
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
@@ -22,7 +24,7 @@ def predict_future(data, model, scaler, sma_5, n_days=30, last_date=None):
     predictions_rescaled = scaler.inverse_transform(predictions)
     sma_5 = np.append(sma_5, [sma_5[-1]] * max(0, n_days - len(sma_5)))  # Extend for future dates
     predictions_actual = predictions_rescaled + sma_5[:len(predictions_rescaled)].reshape(-1, 1)
-    future_dates = pd.date_range(start=last_date, periods=n_days + 1, freq='D')[1:]
+    future_dates = pd.date_range(start=last_date, periods=n_days + 1, freq='B')[1:]
     return [{"date": date.date(), "high": pred[0], "low": pred[1], "close": pred[2]} for date, pred in zip(future_dates, predictions_actual)]
 
 def get_predictions(symbol: str, n_days: int):
@@ -53,7 +55,7 @@ def get_predictions(symbol: str, n_days: int):
 
 def predict_historical(data, model, scaler, start_date, end_date):
     """
-    Predict stock prices for a specific historical date range.
+    Predict stock prices for a specific historical date range, excluding weekends.
 
     Args:
         data (DataFrame): The full dataset with residuals and SMA features.
@@ -65,60 +67,54 @@ def predict_historical(data, model, scaler, start_date, end_date):
     Returns:
         List[dict]: Predictions for the specified date range.
     """
-
-    # Ensure data is within the specified date range
-    target_data = data.loc[start_date:end_date]
-    if target_data.empty:
-        raise ValueError(f"No data available for the range {start_date} to {end_date}")
+    # Generate business days only (exclude weekends)
+    prediction_dates = pd.date_range(start=start_date, end=end_date, freq='B')
 
     # Extract the input sequence ending just before start_date
     input_sequence_end_date = pd.to_datetime(start_date) - pd.Timedelta(days=1)
-    input_sequence = data.loc[:input_sequence_end_date]
+    input_features = ['residual_high', 'residual_low', 'residual_close']
+    input_sequence = data.loc[:input_sequence_end_date][input_features]
 
-    # Ensure there's enough data for the input sequence
-    sequence_length = len(input_sequence)
-    if sequence_length == 0:
-        raise ValueError("No data available to create the input sequence for predictions.")
+    # Scale the input sequence
+    input_sequence_scaled = scaler.transform(input_sequence)
+    test_data_scaled = input_sequence_scaled.reshape(1, input_sequence_scaled.shape[0], input_sequence_scaled.shape[1])
 
-    # Prepare the input sequence
-    test_data_scaled = scaler.transform(input_sequence[['residual_high', 'residual_low', 'residual_close']])
-    test_data_scaled = test_data_scaled[-sequence_length:]  # Use all available rows for prediction
-    test_data_scaled = test_data_scaled.reshape(1, test_data_scaled.shape[0], test_data_scaled.shape[1])
-
-    # Dynamically get the SMA values for adjustment
-    sma_5_values = data['sma_5'].values[-sequence_length:]  # Adjust length dynamically
-
-    # Predict for the target date range
-    n_days = len(target_data)  # Number of days to predict
+    # Initialize predictions list
     predictions = []
 
-    for i in range(n_days):
-        # Make a prediction
+    # Predict for the target date range
+    for current_date in prediction_dates:
         try:
-
+            # Predict next step
             next_prediction = model.predict(test_data_scaled)  # Shape: (1, 3)
-            next_prediction_rescaled = scaler.inverse_transform(next_prediction[0].reshape(1, -1))
+            predictions.append(next_prediction[0])  # Store raw prediction
 
-            # Handle dynamic SMA adjustments
-            sma_adjustment = sma_5_values[i % len(sma_5_values)].reshape(-1, 1)
-            adjusted_prediction = next_prediction_rescaled + sma_adjustment
+            # Update sequence with scaled prediction
+            next_prediction_scaled = next_prediction[0].reshape(1, 1, -1)
+            test_data_scaled = np.concatenate([test_data_scaled[:, 1:, :], next_prediction_scaled], axis=1)
 
-            # Add to predictions
-            predictions.append({
-                "date": (pd.to_datetime(start_date) + pd.Timedelta(days=i)).date(),
-                "high": adjusted_prediction[0, 0],
-                "low": adjusted_prediction[0, 1],
-                "close": adjusted_prediction[0, 2],
-            })
+        except Exception as e:
+            print(f"Prediction failed for date {current_date}: {e}")
+            break
 
-            # Update the input sequence with the prediction
-            next_input = next_prediction[0].reshape(1, 1, -1)  # Reshape for concatenation
-            test_data_scaled = np.concatenate([test_data_scaled[:, 1:, :], next_input], axis=1)
+    # Rescale predictions back to original scale
+    predictions_rescaled = scaler.inverse_transform(predictions)
 
-        except:
-            continue
+    # Align with SMA values if available (optional step)
+    sma_5_values = data.loc[start_date:end_date]['sma_5'].values
+    if len(sma_5_values) < len(predictions_rescaled):
+        sma_5_values = np.append(sma_5_values, [sma_5_values[-1]] * (len(predictions_rescaled) - len(sma_5_values)))
+    predictions_actual = predictions_rescaled + sma_5_values[:len(predictions_rescaled)].reshape(-1, 1)
 
-    return predictions
+    # Format predictions with dates
+    formatted_predictions = [
+        {"date": date.date(), "high": pred[0], "low": pred[1], "close": pred[2]}
+        for date, pred in zip(prediction_dates, predictions_actual)
+    ]
+
+    return formatted_predictions
+
+
 
 
 def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
@@ -142,6 +138,9 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
     # _, _, data, _, _, _ = core.get_simulated_data()
     _, _, data, _, _, _ = core.get_live_data(symbol=symbol)
 
+    print("start_date: ", start_date)
+    print("end_date: ", end_date)
+
     # Ensure data is within the specified date range
     actual_data = data.loc[start_date:end_date]
     if actual_data.empty:
@@ -164,6 +163,14 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
         columns={"2. high": "high", "3. low": "low", "4. close": "close"}
     )
 
+    print(" ------- actual values: data ------")
+    print(actual_values)
+    print(" ------- End of actual values: data ------")
+
+    print(" ------- predicted values: data ------")
+    print(predictions_df)
+    print(" ------- End of predicted values: data ------")
+
     # Ensure date ranges align perfectly
     predictions_df = predictions_df.loc[actual_values.index]
 
@@ -185,6 +192,7 @@ def get_predictions_and_mse(symbol: str, start_date: str, end_date: str):
     }
 
 def get_test_date_range(): 
+    # _, _, _, _, test_data_start_date, test_data_end_date = core.get_simulated_data()
     _, _, _, _, test_data_start_date, test_data_end_date = core.get_live_data()
     print(f"Test Data Start Date: {test_data_start_date}")
     print(f"Test Data End Date: {test_data_end_date}")
@@ -198,3 +206,18 @@ def get_test_date_range():
 # print(result)
 
 # get_test_date_range()
+
+
+
+# Function to calculate business days difference
+def subtract_business_days(end_date_str, business_days):
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+    business_days_counted = 0
+    current_date = end_date
+    
+    while business_days_counted < business_days:
+        current_date -= timedelta(days=1)
+        if current_date.weekday() < 5:  # Monday to Friday are business days
+            business_days_counted += 1
+
+    return current_date.strftime("%Y-%m-%d")
